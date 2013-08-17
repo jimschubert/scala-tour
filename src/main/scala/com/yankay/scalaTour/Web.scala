@@ -13,10 +13,8 @@ import org.json4s.jackson.JsonMethods
 import javax.servlet.http.HttpServlet
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
-import org.eclipse.jetty.server.handler.ResourceHandler
 import org.eclipse.jetty.servlet.DefaultServlet
 import org.eclipse.jetty.servlet.FilterHolder
-import org.eclipse.jetty.server.handler.GzipHandler
 import org.eclipse.jetty.servlets.GzipFilter
 import java.util.EnumSet
 import javax.servlet.DispatcherType
@@ -61,7 +59,7 @@ class RunServlet extends HttpServlet {
     //    println(new String(buffer.toByteArray()))
     //    println(error);
     def replaceErrorCodeNum(src: String): String = {
-      val reg = new Regex("""main\.scala:([0-9]*): error:.*""")
+      val reg = new Regex( """main\.scala:([0-9]*): error:.*""")
       reg.unapplySeq(src).getOrElse(src) match {
         case l :: Nil => "main.scala:" + (l.toString.toInt - 8).toString + src.substring("main.scala:".length() + l.toString.length())
         case _ => src
@@ -115,29 +113,28 @@ class RunServlet extends HttpServlet {
   }
 
   def json(mode: RunResponse): String = {
-    import org.json4s._
     import org.json4s.JsonDSL._
     val json = ("Errors" -> mode.errors) ~ ("Events" -> mode.events) ~ ("ErrEvents" -> mode.errEvents)
     JsonMethods.pretty(JsonMethods.render(json))
   }
 
   def memo(f: String => RunResponse) = {
-    (x: String) =>
-      {
-        val response = Web.cache.get(x)
-        response match {
-          case Some(resp) => resp
-          case None => {
-            val resp = f(x)
-            resp.exitValue match {
-              case 0 => Web.cache.getOrElseUpdate(x, resp)
-              case _ => resp
-            }
+    (x: String) => {
+      val response = Web.cache.get(x)
+      response match {
+        case Some(resp) => resp
+        case None => {
+          val resp = f(x)
+          resp.exitValue match {
+            case 0 => Web.cache.getOrElseUpdate(x, resp)
+            case _ => resp
           }
-
         }
+
       }
+    }
   }
+
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse) = {
     val code = req.getParameter("code")
     if (code == null)

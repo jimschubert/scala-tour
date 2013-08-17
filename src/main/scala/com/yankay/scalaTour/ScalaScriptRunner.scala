@@ -3,35 +3,22 @@ package com.yankay.scalaTour
 import java.io.OutputStream
 import java.io.PrintStream
 import java.io.PrintWriter
-import scala.collection.mutable.StringBuilder
 import scala.reflect.io.Directory
 import scala.reflect.io.File
 import scala.reflect.io.Path
-import scala.reflect.io.Path.string2path
 import scala.sys.process.Process
 import scala.sys.process.ProcessBuilder
-import scala.sys.process.ProcessCreation
-import scala.sys.process.ProcessIO
 import scala.sys.process.ProcessLogger
 import scala.tools.nsc.GenericRunnerCommand
 import scala.tools.nsc.GenericRunnerSettings
 import scala.tools.nsc.Global
-import scala.tools.nsc.Settings
 import scala.tools.nsc.reporters.ConsoleReporter
-import scala.tools.nsc.reporters.Reporter
-import scala.tools.nsc.util.HasClassPath
 import scala.util.Properties
 import scala.tools.nsc.io.Jar
 
 object ScalaScriptCompiler {
-//  /** Default name to use for the wrapped script */
+  //  /** Default name to use for the wrapped script */
   val defaultScriptMain = "Main"
-//
-//  /** Pick a main object name from the specified settings */
-//  def scriptMain(settings: Settings) = settings.script.value match {
-//    case "" => defaultScriptMain
-//    case x => x
-//  }
 
   val settings: GenericRunnerSettings = {
     val command = new GenericRunnerCommand(List(), Console.err println _)
@@ -52,7 +39,6 @@ object ScalaScriptCompiler {
 
   def compile(script: String, err: OutputStream): Option[File] = {
     val scriptFile = File.makeTemp("scala-script", ".scala")
-    // save the command to the file
 
     val illegalCodePattern = """.*(\.sys\.).*""".r
 
@@ -60,8 +46,8 @@ object ScalaScriptCompiler {
       if (illegalCodePattern.findAllIn(script).toList.isEmpty) script
       else """println("No need to import anything")"""
     }
-    
-    val scriptAll =  """
+
+    val scriptAll = """
     import scala.io.Codec
     import java.nio.charset.CodingErrorAction
     object Main {
@@ -69,35 +55,29 @@ object ScalaScriptCompiler {
 		    implicit val codec = Codec("UTF-8")
 		    codec.onMalformedInput(CodingErrorAction.REPLACE)
 		    codec.onUnmappableCharacter(CodingErrorAction.REPLACE)
-    """ + strippedScript + """
+                    """ + strippedScript + """
     	}
     }
     """
+
+    // save the script to a file
     scriptFile.writeAll(scriptAll)
     try compile(scriptFile, err)
     finally scriptFile.delete() // in case there was a compilation error
   }
 
   def compile(
-    scriptFile: File, err: OutputStream): Option[File] = {
-//    def mainClass = scriptMain(settings)
+               scriptFile: File, err: OutputStream): Option[File] = {
     val compiledPath = Directory makeTemp "scalascript"
-
-    // delete the directory after the user code has finished
-    //    sys.addShutdownHook(compiledPath.deleteRecursively())
 
     settings.outdir.value = compiledPath.path
 
-    /**
-     * Setting settings.script.value informs the compiler this is not a
-     *  self contained compilation unit.
-     */
-//    settings.script.value = mainClass
     val reporter = new ConsoleReporter(settings, Console.in, new PrintWriter(err, true))
     val compiler = Global(settings, reporter)
 
     new compiler.Run compile List(scriptFile.path)
-    if (reporter.hasErrors) None else
+    if (reporter.hasErrors) None
+    else
       try createjar(compiledPath)
       finally compiledPath.deleteRecursively;
   }
@@ -108,7 +88,9 @@ object ScalaScriptCompiler {
     try {
       Jar.create(jarpath, compiledPath, defaultScriptMain)
       Some(jarpath)
-    } catch { case _: Exception => jarpath.delete(); None }
+    } catch {
+      case _: Exception => jarpath.delete(); None
+    }
 
   }
 }
@@ -126,7 +108,7 @@ object ScalaScriptProcess {
     val policy = new java.io.File("policy")
     val sep = Properties.propOrEmpty("path.separator")
     val CP = Properties.propOrEmpty("java.class.path") + sep + compiledLocation + sep + "./bin" + sep + "."
-    var args = List("-Djava.security.manager", "-Djava.security.policy=" + policy.getAbsolutePath ,"-cp", CP, "Main")
+    var args = List("-Djava.security.manager", "-Djava.security.policy=" + policy.getAbsolutePath, "-cp", CP, "Main")
     if (Path(javaf()).exists) {
       val outp = new PrintStream(out, true);
       val errp = new PrintStream(err, true);
@@ -141,7 +123,6 @@ object ScalaScriptProcess {
 
 class ScalaScriptProcess(val builder: ProcessBuilder, val logger: ProcessLogger) {
   def run(): Process = {
-    // println(builder.toString)
     builder.run(logger);
   }
 }
