@@ -1,7 +1,5 @@
 package com.yankay.scalaTour
 
-;
-
 import scala.language.implicitConversions
 import com.tristanhunt.knockoff.DefaultDiscounter._
 
@@ -18,7 +16,7 @@ class MarkdownConverter(val input: String) {
     (asHtml \\ "p")
   }
 
-  def asHtml = {
+  lazy val asHtml = {
     toXHTML(knockoff(input))
   }
 }
