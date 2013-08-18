@@ -1,8 +1,16 @@
 package com.yankay.scalaTour
 
 import org.specs2.mutable._
+import scala.xml.NodeSeq
+import scala.xml.Utility.{trim => tr}
 
 class MarkdownConverterTest extends Specification {
+
+  // TODO Convert this to a proper specs2 matcher
+  def xmlValuesShouldEqual(first: NodeSeq, second: NodeSeq): Boolean = {
+    first.flatten(x => tr(x)) == second.flatten(x => tr(x))
+  }
+
   "MarkdownConverter" should {
     "class accepts a string as input" in {
       val input = "*some input*"
@@ -40,7 +48,7 @@ class MarkdownConverterTest extends Specification {
           |
           | **bold** text *italic*""".stripMargin
 
-      val expected: String = """<h1>Scala Tour</h1><p> Hello, <em>World</em>!
+      val expected = """<h1>Scala Tour</h1><p> Hello, <em>World</em>!
                        |</p><p> ## Example
                        |</p><p> <code>val x: String = &quot;Hi&quot;</code>
                        |</p><p> <strong>bold</strong> text <em>italic</em></p>""".stripMargin
@@ -50,16 +58,18 @@ class MarkdownConverterTest extends Specification {
 
     "converts bold to expected html" in {
       val input: String = "**input**"
-      val expected: String = """<p><strong>input</strong></p>"""
+      val expected = <p><strong>input</strong></p>
 
-      MarkdownConverter(input).asHtml.toString must equalTo(expected)
+      val contents = MarkdownConverter(input).asHtml
+      xmlValuesShouldEqual(contents, expected) must beTrue
     }
 
     "handles unicode (Chinese) characters" in {
       val input: String = "**表达式和值**"
-      val expected: String = """<p><strong>表达式和值</strong></p>"""
+      val expected = <p><strong>表达式和值</strong></p>
 
-      MarkdownConverter(input).asHtml.toString must equalTo(expected)
+      val contents = MarkdownConverter(input).asHtml
+      xmlValuesShouldEqual(contents, expected) must beTrue
     }
 
     "finds a title from markdown with title" in {
@@ -83,6 +93,61 @@ class MarkdownConverterTest extends Specification {
       val expected: String = ""
 
       MarkdownConverter(input).title must equalTo(expected)
+    }
+
+    "finds desired (first) code block" in {
+      val input: String =
+        """# Sample code
+          |Some preceding text
+          |
+          |    var x: String = "found"
+          |
+          |Some more text
+        """.stripMargin
+
+      val expected: String = """var x: String = "found""""
+
+      MarkdownConverter(input).code.trim must equalTo(expected)
+    }
+
+    "finds desired content block" in {
+      val input: String =
+        """# Sample code
+          |
+          |    var x: String = "found"
+          |
+          |This is the contents with some `extra` code.
+          |
+          |It must include *all* contents.
+        """.stripMargin
+
+      val expected = <p>This is the contents with some <code>extra</code> code.
+      </p><p>It must include <em>all</em> contents.
+      </p>;
+
+      val contents = MarkdownConverter(input).contents
+      xmlValuesShouldEqual(contents, expected) must beTrue
+    }
+
+    "finds desired content block" in {
+      val input: String =
+        """# Sample code
+          |Before Text
+          |
+          |    var x: String = "found"
+          |
+          |This is the contents with some `extra` code.
+          |
+          |It must include *all* contents.
+        """.stripMargin
+
+      val expected =  <p>Before Text
+        </p><p>This is the contents with some <code>extra</code> code.
+        </p><p>It must include <em>all</em> contents.
+        </p>;
+
+      val contents = MarkdownConverter(input).contents
+      xmlValuesShouldEqual(contents, expected) must beTrue
     }
   }
 }

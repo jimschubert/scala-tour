@@ -10,6 +10,14 @@ class MarkdownConverter(val input: String) {
     (asHtml \\ "h1").text
   }
 
+  lazy val code = {
+    (asHtml \\ "pre").text
+  }
+
+  lazy val contents = {
+    (asHtml \\ "p")
+  }
+
   def asHtml = {
     toXHTML(knockoff(input))
   }
