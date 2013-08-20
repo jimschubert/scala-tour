@@ -3,12 +3,39 @@ package com.yankay.scalaTour
 import org.specs2.mutable._
 import scala.xml.NodeSeq
 import scala.xml.Utility.{trim => tr}
+import org.specs2.matcher.{Matcher, Expectable}
 
 class MarkdownConverterTest extends Specification {
 
-  // TODO Convert this to a proper specs2 matcher
-  def xmlValuesShouldEqual(first: NodeSeq, second: NodeSeq): Boolean = {
+  /**
+   * Determines whether two XML node sequences are structurally similar (whitespace trimmed)
+   * @param first
+   * @param second
+   * @return
+   */
+  def xmlValuesShouldEqual(first: NodeSeq)(second: NodeSeq):Boolean = {
     first.flatten(x => tr(x)) == second.flatten(x => tr(x))
+  }
+
+  /**
+   * Matcher to compare two NodeSeq objects
+   * @param t
+   * @tparam T
+   * @return
+   */
+  def xmlEq[T <: NodeSeq](t: => NodeSeq) = new XmlEq(t)
+
+  /**
+   * Matcher Class Implementation for trimmed XML comparison
+   * @param other
+   */
+  class XmlEq(other:NodeSeq) extends Matcher[NodeSeq] {
+    def apply[S <: NodeSeq](s: Expectable[S]) = {
+      result(xmlValuesShouldEqual(other)(s.value),
+        s.description + " is same",
+        s.description + "\ndid not match\n" + other.toString,
+        s)
+    }
   }
 
   "MarkdownConverter" should {
@@ -61,7 +88,7 @@ class MarkdownConverterTest extends Specification {
       val expected = <p><strong>input</strong></p>
 
       val contents = MarkdownConverter(input).asHtml
-      xmlValuesShouldEqual(contents, expected) must beTrue
+      contents must xmlEq(expected)
     }
 
     "handles unicode (Chinese) characters" in {
@@ -69,7 +96,7 @@ class MarkdownConverterTest extends Specification {
       val expected = <p><strong>表达式和值</strong></p>
 
       val contents = MarkdownConverter(input).asHtml
-      xmlValuesShouldEqual(contents, expected) must beTrue
+      contents must xmlEq(expected)
     }
 
     "finds a title from markdown with title" in {
@@ -126,7 +153,7 @@ class MarkdownConverterTest extends Specification {
       </p>;
 
       val contents = MarkdownConverter(input).contents
-      xmlValuesShouldEqual(contents, expected) must beTrue
+      contents must xmlEq(expected)
     }
 
     "finds desired content block" in {
@@ -147,7 +174,7 @@ class MarkdownConverterTest extends Specification {
         </p>;
 
       val contents = MarkdownConverter(input).contents
-      xmlValuesShouldEqual(contents, expected) must beTrue
+      contents must xmlEq(expected)
     }
   }
 }
